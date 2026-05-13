@@ -1,7 +1,8 @@
 import numpy as np
-import mediapipe as mp
 import torch
-import cv2
+
+mp = None
+cv2 = None
 
 mp_pose    = mp.solutions.pose
 MP         = mp_pose.PoseLandmark
@@ -70,9 +71,17 @@ def build_model_input(joints_2d: np.ndarray) -> torch.Tensor:
 
 class PoseInference:
     def __init__(self, model, device="cpu"):
-        self.model  = model
+        global mp, cv2
+
+        import mediapipe as mp_local
+        import cv2 as cv2_local
+
+        mp = mp_local
+        cv2 = cv2_local
+
+        self.model = model
         self.device = device
-        self.pose   = mp_pose.Pose(
+        self.pose = mp.solutions.pose.Pose(
             min_detection_confidence=0.4,
             min_tracking_confidence=0.4,
             model_complexity=1,
