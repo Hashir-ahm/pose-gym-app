@@ -17,7 +17,7 @@ interface GymFrame {
   form_status:  FormStatus;
   active_error: string;
   arc_color:    string;
-  joints_3d:    [number,number,number][];
+  joints_3d:    [number, number, number][];
   good_reps:    number;
   form_errors:  number;
 }
@@ -29,40 +29,39 @@ interface Summary {
   bad_reps:      number;
   form_score:    number;
   grade:         string;
-  rep_details:   { rep:number; min_angle:number; max_angle:number; form:string }[];
+  rep_details:   { rep: number; min_angle: number; max_angle: number; form: string }[];
 }
 
-// ── Exercise definitions ────────────────────────────────────────────────────
 const EXERCISES = [
-  // ── Functional (connected to backend) ──
-  { key: "bicep_curl",       label: "Bicep Curl",       icon: "💪", functional: true,  muscle: "Biceps",      desc: "Keep elbows at sides. Curl fully, extend fully." },
-  { key: "squat",            label: "Squat",            icon: "🦵", functional: true,  muscle: "Quads/Glutes",desc: "Feet shoulder width. Thighs parallel at bottom." },
-
-  // ── Coming Soon ──
-  { key: "shoulder_press",   label: "Shoulder Press",   icon: "🏋️", functional: false, muscle: "Shoulders",   desc: "Press overhead until arms fully extended." },
-  { key: "lateral_raise",    label: "Lateral Raise",    icon: "🙆", functional: false, muscle: "Shoulders",   desc: "Raise arms to shoulder height, keep slight bend." },
-  { key: "tricep_extension", label: "Tricep Extension", icon: "💥", functional: false, muscle: "Triceps",     desc: "Extend arms fully behind head." },
-  { key: "deadlift",         label: "Deadlift",         icon: "🏗️", functional: false, muscle: "Back/Glutes", desc: "Hinge at hips, keep back flat throughout." },
-  { key: "lunge",            label: "Lunge",            icon: "🚶", functional: false, muscle: "Quads/Glutes",desc: "Step forward, lower knee toward floor." },
+  { key: "bicep_curl",       label: "Bicep Curl",       icon: "💪", functional: true,  muscle: "Biceps",       desc: "Keep elbows at sides. Curl fully, extend fully." },
+  { key: "squat",            label: "Squat",            icon: "🦵", functional: true,  muscle: "Quads/Glutes", desc: "Feet shoulder width. Thighs parallel at bottom." },
+  { key: "shoulder_press",   label: "Shoulder Press",   icon: "🏋️", functional: false, muscle: "Shoulders",    desc: "Press overhead until arms fully extended." },
+  { key: "lateral_raise",    label: "Lateral Raise",    icon: "🙆", functional: false, muscle: "Shoulders",    desc: "Raise arms to shoulder height, keep slight bend." },
+  { key: "tricep_extension", label: "Tricep Extension", icon: "💥", functional: false, muscle: "Triceps",      desc: "Extend arms fully behind head." },
+  { key: "deadlift",         label: "Deadlift",         icon: "🏗️", functional: false, muscle: "Back/Glutes",  desc: "Hinge at hips, keep back flat throughout." },
+  { key: "lunge",            label: "Lunge",            icon: "🚶", functional: false, muscle: "Quads/Glutes", desc: "Step forward, lower knee toward floor." },
   { key: "push_up",          label: "Push Up",          icon: "🤸", functional: false, muscle: "Chest/Triceps",desc: "Lower chest to floor, keep core tight." },
 ];
 
 export default function GymPage() {
   const router = useRouter();
-  const [user, setUser]           = useState<any>(null);
-  const [exercise, setExercise]   = useState("");
-  const [started, setStarted]     = useState(false);
-  const [frame, setFrame]         = useState<GymFrame | null>(null);
-  const [summary, setSummary]     = useState<Summary | null>(null);
-  const [showSummary, setShowSummary] = useState(false);
-  const [repFlash, setRepFlash]   = useState(false);
-  const [wsStatus, setWsStatus]   = useState<"disconnected"|"connecting"|"connected">("disconnected");
-  const [cameraError, setCameraError] = useState("");
 
-  const videoRef  = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const wsRef     = useRef<WebSocket | null>(null);
-  const loopRef   = useRef<boolean>(false);
+  const [user, setUser]               = useState<any>(null);
+  const [exercise, setExercise]       = useState("");
+  const [started, setStarted]         = useState(false);
+  const [frame, setFrame]             = useState<GymFrame | null>(null);
+  const [summary, setSummary]         = useState<Summary | null>(null);
+  const [showSummary, setShowSummary] = useState(false);
+  const [repFlash, setRepFlash]       = useState(false);
+  const [wsStatus, setWsStatus]       = useState<"disconnected" | "connecting" | "connected">("disconnected");
+  const [cameraError, setCameraError] = useState("");
+  const [debugMsg, setDebugMsg]       = useState("");
+
+  // ── Refs — always mounted, never conditionally rendered ─────────────────
+  const videoRef   = useRef<HTMLVideoElement>(null);
+  const canvasRef  = useRef<HTMLCanvasElement>(null);
+  const wsRef      = useRef<WebSocket | null>(null);
+  const loopRef    = useRef<boolean>(false);
   const prevRepRef = useRef(0);
 
   useEffect(() => {
@@ -71,7 +70,7 @@ export default function GymPage() {
     setUser(JSON.parse(stored));
   }, [router]);
 
-  // ── Frame sending loop — runs independently of WS open ──────────────────
+  // ── Frame loop ────────────────────────────────────────────────────────────
   const startFrameLoop = useCallback((ws: WebSocket) => {
     loopRef.current = true;
 
@@ -81,36 +80,30 @@ export default function GymPage() {
       const canvas = canvasRef.current;
       const video  = videoRef.current;
 
-      if (!canvas || !video) {
-        setTimeout(loop, 100); // wait for DOM
-        return;
-      }
-
-      if (ws.readyState !== WebSocket.OPEN) {
+      if (!canvas || !video || ws.readyState !== WebSocket.OPEN) {
         setTimeout(loop, 100);
         return;
       }
 
-      if (video.readyState >= 2) {
-        const ctx = canvas.getContext("2d");
-        if (ctx) {
-          ctx.drawImage(video, 0, 0, 640, 480);
-          canvas.toBlob(blob => {
-            if (blob && ws.readyState === WebSocket.OPEN) {
-              blob.arrayBuffer().then(buf => {
-                try { ws.send(buf); } catch {}
-              });
-            }
-          }, "image/jpeg", 0.7);
-        }
+      const ctx = canvas.getContext("2d");
+      if (ctx && video.videoWidth > 0 && video.readyState >= 2) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(blob => {
+          if (blob && blob.size > 5000 && ws.readyState === WebSocket.OPEN) {
+            blob.arrayBuffer().then(buf => {
+              try { ws.send(buf); } catch {}
+            });
+          }
+        }, "image/jpeg", 0.85);
       }
 
-      setTimeout(loop, 80); // ~12fps
+      setTimeout(loop, 80);
     };
 
-    setTimeout(loop, 300); // slight delay for DOM mount
+    loop();
   }, []);
 
+  // ── Start session ─────────────────────────────────────────────────────────
   const startSession = useCallback(async () => {
     const ex = EXERCISES.find(e => e.key === exercise);
     if (!ex) return;
@@ -121,28 +114,49 @@ export default function GymPage() {
     }
 
     setCameraError("");
+    setDebugMsg("Starting camera...");
     setWsStatus("connecting");
 
-    // Start camera first
+    // Get camera stream
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: 640, height: 480, facingMode: "user" }
+        video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" },
       });
-    } catch (err) {
-      setCameraError("Camera permission denied. Please allow camera access and try again.");
+    } catch {
+      setCameraError("Camera permission denied. Please allow camera access.");
       setWsStatus("disconnected");
+      setDebugMsg("");
       return;
     }
 
-    // Attach stream to video element
-    if (videoRef.current) {
-      videoRef.current.srcObject = stream;
-      await new Promise<void>(resolve => {
-        videoRef.current!.onloadedmetadata = () => resolve();
-      });
-      await videoRef.current.play().catch(() => {});
-    }
+    // videoRef is always mounted — safe to use directly
+    const video  = videoRef.current!;
+    const canvas = canvasRef.current!;
+
+    video.srcObject = stream;
+
+    // Wait for video to be ready with real dimensions
+    await new Promise<void>(resolve => {
+      const check = () => {
+        if (video.videoWidth > 0 && video.readyState >= 2) {
+          resolve();
+        } else {
+          setTimeout(check, 100);
+        }
+      };
+      video.addEventListener("canplay", check, { once: true });
+      setTimeout(check, 500); // start checking after 500ms
+      setTimeout(resolve, 4000); // hard timeout
+    });
+
+    try { await video.play(); } catch {}
+
+    // Set canvas to match real video size
+    canvas.width  = video.videoWidth  || 640;
+    canvas.height = video.videoHeight || 480;
+
+    setDebugMsg(`Camera ready ${canvas.width}x${canvas.height}. Connecting to backend...`);
 
     // Connect WebSocket
     const ws = new WebSocket(`${BACKEND_WS}/ws/gym?exercise=${exercise}`);
@@ -151,70 +165,63 @@ export default function GymPage() {
     ws.onopen = () => {
       setWsStatus("connected");
       setStarted(true);
+      setDebugMsg("");
       startFrameLoop(ws);
     };
 
     ws.onmessage = (evt) => {
       try {
         const data = JSON.parse(evt.data);
-
         if (data.type === "summary") {
           setSummary(data);
           setShowSummary(true);
           return;
         }
-
-        if (data.error) {
-          console.error("Backend error:", data.error);
-          return;
-        }
-
+        if (data.error) { console.error("Backend:", data.error); return; }
         setFrame(data);
-
         if ((data.rep_count ?? 0) > prevRepRef.current) {
           prevRepRef.current = data.rep_count;
           setRepFlash(true);
           setTimeout(() => setRepFlash(false), 400);
         }
-      } catch (e) {
-        console.error("Parse error:", e);
-      }
+      } catch (e) { console.error("Parse:", e); }
     };
 
     ws.onerror = () => {
-      setCameraError("Cannot connect to backend. Make sure it's running on port 8000.");
+      setCameraError("Cannot connect to backend. Make sure it is running on port 8000.");
       setWsStatus("disconnected");
+      setDebugMsg("");
     };
 
-    ws.onclose = () => {
-      setWsStatus("disconnected");
-    };
+    ws.onclose = () => setWsStatus("disconnected");
 
   }, [exercise, startFrameLoop]);
 
-  const stopSession = () => {
+  // ── Controls ──────────────────────────────────────────────────────────────
+  const stopCamera = () => {
     loopRef.current = false;
+    const stream = videoRef.current?.srcObject as MediaStream;
+    stream?.getTracks().forEach(t => t.stop());
+    if (videoRef.current) videoRef.current.srcObject = null;
+  };
+
+  const stopSession = () => {
+    stopCamera();
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ action: "get_summary" }));
     }
-    const stream = videoRef.current?.srcObject as MediaStream;
-    stream?.getTracks().forEach(t => t.stop());
   };
 
   const resetSession = () => {
-    loopRef.current = false;
     wsRef.current?.send(JSON.stringify({ action: "reset" }));
     setFrame(null);
-    setSummary(null);
-    setShowSummary(false);
     prevRepRef.current = 0;
   };
 
   const endAndGoBack = () => {
     loopRef.current = false;
     wsRef.current?.close();
-    const stream = videoRef.current?.srcObject as MediaStream;
-    stream?.getTracks().forEach(t => t.stop());
+    stopCamera();
     setStarted(false);
     setExercise("");
     setFrame(null);
@@ -222,6 +229,7 @@ export default function GymPage() {
     setShowSummary(false);
     prevRepRef.current = 0;
     setWsStatus("disconnected");
+    setDebugMsg("");
   };
 
   const formColors = {
@@ -229,7 +237,6 @@ export default function GymPage() {
     warning: { bg: "bg-orange-500/10", border: "border-orange-500/40", text: "text-orange-400" },
     error:   { bg: "bg-red-500/10",    border: "border-red-500/40",    text: "text-red-400"    },
   };
-
   const fs = frame?.form_status || "good";
   const fc = formColors[fs];
 
@@ -237,7 +244,22 @@ export default function GymPage() {
 
   return (
     <main className="min-h-screen bg-dark-900 grid-bg">
-      {/* Navbar */}
+
+      {/*
+        ── CRITICAL: video + canvas always in DOM ──────────────────────────
+        These must never be inside a conditional block.
+        They are hidden visually but always mounted so refs are always valid.
+      */}
+      <video
+        ref={videoRef}
+        autoPlay
+        muted
+        playsInline
+        className="hidden"
+      />
+      <canvas ref={canvasRef} className="hidden" />
+
+      {/* ── Navbar ─────────────────────────────────────────────────────── */}
       <nav className="sticky top-0 z-50 px-6 py-4 border-b border-white/5 bg-dark-900/80 backdrop-blur flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button
@@ -247,13 +269,12 @@ export default function GymPage() {
             ← Dashboard
           </button>
           <span className="text-white font-bold">Gym Mode</span>
-          {/* WS status dot */}
           <div className={`flex items-center gap-1.5 text-xs ${
-            wsStatus === "connected" ? "text-neon-green" :
+            wsStatus === "connected"  ? "text-neon-green" :
             wsStatus === "connecting" ? "text-yellow-400" : "text-slate-500"
           }`}>
             <span className={`w-2 h-2 rounded-full ${
-              wsStatus === "connected" ? "bg-neon-green animate-pulse" :
+              wsStatus === "connected"  ? "bg-neon-green animate-pulse" :
               wsStatus === "connecting" ? "bg-yellow-400 animate-pulse" : "bg-slate-600"
             }`} />
             {wsStatus === "connected" ? "Live" : wsStatus === "connecting" ? "Connecting..." : "Offline"}
@@ -268,26 +289,27 @@ export default function GymPage() {
 
         {/* ── Exercise selector ─────────────────────────────────────────── */}
         {!started && (
-          <div className="mb-8">
+          <div>
             <div className="mb-6">
               <h2 className="text-white font-bold text-xl mb-1">Select Exercise</h2>
-              <p className="text-slate-500 text-sm">Functional exercises track reps and form. Others coming soon.</p>
+              <p className="text-slate-500 text-sm">
+                Functional exercises track reps and form. Others coming soon.
+              </p>
             </div>
 
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
               {EXERCISES.map(ex => (
                 <button
                   key={ex.key}
-                  onClick={() => setExercise(ex.key)}
+                  onClick={() => ex.functional && setExercise(ex.key)}
                   className={`p-5 rounded-xl border text-left transition-all relative ${
                     exercise === ex.key
                       ? "border-neon-green/60 bg-neon-green/10"
                       : ex.functional
-                        ? "border-white/10 bg-dark-800/50 hover:border-white/20"
-                        : "border-white/5 bg-dark-800/30 opacity-60 hover:opacity-80"
+                        ? "border-white/10 bg-dark-800/50 hover:border-white/20 cursor-pointer"
+                        : "border-white/5 bg-dark-800/30 opacity-50 cursor-not-allowed"
                   }`}
                 >
-                  {/* Coming soon badge */}
                   {!ex.functional && (
                     <span className="absolute top-3 right-3 text-xs px-2 py-0.5 rounded-full bg-slate-700 text-slate-400">
                       Soon
@@ -304,6 +326,12 @@ export default function GymPage() {
             {cameraError && (
               <div className="mb-4 p-4 rounded-xl border border-red-500/30 bg-red-500/10 text-red-400 text-sm">
                 ❌ {cameraError}
+              </div>
+            )}
+
+            {debugMsg && (
+              <div className="mb-4 p-3 rounded-xl border border-yellow-500/20 bg-yellow-500/5 text-yellow-400 text-sm">
+                ⏳ {debugMsg}
               </div>
             )}
 
@@ -365,7 +393,10 @@ export default function GymPage() {
                       {fs === "good" ? "Good Form" : fs === "warning" ? "Check Form" : "Form Error"}
                     </div>
                     <div className="text-slate-400 text-xs mt-0.5">
-                      {frame?.active_error || (frame?.detected ? "Keep it up! Good form." : "Stand in frame — full body visible")}
+                      {frame?.active_error ||
+                        (frame?.detected
+                          ? "Keep it up! Good form."
+                          : "Stand back — full body must be visible")}
                     </div>
                   </div>
                 </div>
@@ -382,40 +413,49 @@ export default function GymPage() {
                   <div
                     className="h-full rounded-full transition-all duration-100"
                     style={{
-                      width:     `${((frame?.angle ?? 0) / 180) * 100}%`,
-                      background: frame?.arc_color ?? "#00ff88",
-                      boxShadow: `0 0 10px ${frame?.arc_color ?? "#00ff88"}88`,
+                      width:      `${((frame?.angle ?? 0) / 180) * 100}%`,
+                      background:  frame?.arc_color ?? "#00ff88",
+                      boxShadow:  `0 0 10px ${frame?.arc_color ?? "#00ff88"}88`,
                     }}
                   />
                 </div>
                 <div className="flex justify-between text-xs text-slate-600 mt-1">
-                  <span>Fully curled / bent</span>
-                  <span>Extended / standing</span>
+                  <span>Curled / Bent</span>
+                  <span>Extended / Standing</span>
                 </div>
               </div>
 
-              {/* Camera feed */}
-              <div className="rounded-xl overflow-hidden bg-dark-900 border border-white/5 relative" style={{ aspectRatio: "4/3" }}>
+              {/* Camera display — uses videoRef directly for display */}
+              <div
+                className="rounded-xl overflow-hidden bg-dark-900 border border-white/5 relative"
+                style={{ aspectRatio: "4/3" }}
+              >
+                {/* Mirror video for natural display */}
                 <video
-                  ref={videoRef}
                   autoPlay
                   muted
                   playsInline
                   className="w-full h-full object-cover"
                   style={{ transform: "scaleX(-1)" }}
+                  ref={(el) => {
+                    // Sync this display video with the hidden capture video
+                    if (el && videoRef.current?.srcObject) {
+                      el.srcObject = videoRef.current.srcObject;
+                    }
+                  }}
                 />
-                {/* Hidden canvas for frame capture */}
-                <canvas ref={canvasRef} width={640} height={480} className="hidden" />
 
-                {/* Detection status overlay */}
+                {/* Detection badge */}
                 <div className="absolute top-3 left-3 flex items-center gap-2 bg-black/60 px-3 py-1.5 rounded-full backdrop-blur">
-                  <span className={`w-2 h-2 rounded-full ${frame?.detected ? "bg-neon-green animate-pulse" : "bg-red-400"}`} />
+                  <span className={`w-2 h-2 rounded-full ${
+                    frame?.detected ? "bg-neon-green animate-pulse" : "bg-red-400"
+                  }`} />
                   <span className="text-white text-xs">
                     {frame?.detected ? "Person detected" : "No person detected"}
                   </span>
                 </div>
 
-                {/* Phase indicator */}
+                {/* Phase badge */}
                 <div className="absolute top-3 right-3 bg-black/60 px-3 py-1.5 rounded-full backdrop-blur">
                   <span className="text-white text-xs">
                     {frame?.phase === "up" ? "↑ Going up" : "↓ Going down"}
@@ -424,8 +464,8 @@ export default function GymPage() {
 
                 {/* Tip when not detected */}
                 {!frame?.detected && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="text-center bg-black/50 px-6 py-4 rounded-xl backdrop-blur">
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="text-center bg-black/60 px-6 py-4 rounded-xl backdrop-blur">
                       <div className="text-3xl mb-2">🧍</div>
                       <p className="text-slate-300 text-sm font-medium">Stand back from camera</p>
                       <p className="text-slate-500 text-xs mt-1">Full body must be visible</p>
@@ -464,11 +504,11 @@ export default function GymPage() {
               </div>
               <div className="px-5 py-3 border-t border-white/5 grid grid-cols-5 gap-2">
                 {[
-                  { color:"#E74C3C", label:"R.Leg" },
-                  { color:"#3498DB", label:"L.Leg" },
-                  { color:"#2ECC71", label:"Spine" },
-                  { color:"#9B59B6", label:"L.Arm" },
-                  { color:"#F39C12", label:"R.Arm" },
+                  { color: "#E74C3C", label: "R.Leg" },
+                  { color: "#3498DB", label: "L.Leg" },
+                  { color: "#2ECC71", label: "Spine" },
+                  { color: "#9B59B6", label: "L.Arm" },
+                  { color: "#F39C12", label: "R.Arm" },
                 ].map(b => (
                   <div key={b.label} className="flex items-center gap-1.5">
                     <div className="w-3 h-3 rounded-full" style={{ background: b.color }} />
@@ -481,7 +521,7 @@ export default function GymPage() {
         )}
       </div>
 
-      {/* Summary Modal */}
+      {/* ── Summary Modal ─────────────────────────────────────────────────── */}
       {showSummary && summary && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur z-50 flex items-center justify-center p-6">
           <div className="bg-dark-800 border border-white/10 rounded-2xl p-8 max-w-lg w-full max-h-[90vh] overflow-y-auto">
@@ -497,9 +537,9 @@ export default function GymPage() {
 
             <div className="grid grid-cols-3 gap-4 mb-6">
               {[
-                { label:"Total Reps", value: summary.total_reps, color:"text-white" },
-                { label:"Good Reps",  value: summary.good_reps,  color:"text-neon-green" },
-                { label:"Errors",     value: summary.bad_reps,   color:"text-red-400" },
+                { label: "Total Reps", value: summary.total_reps, color: "text-white" },
+                { label: "Good Reps",  value: summary.good_reps,  color: "text-neon-green" },
+                { label: "Errors",     value: summary.bad_reps,   color: "text-red-400" },
               ].map(s => (
                 <div key={s.label} className="text-center p-4 rounded-xl bg-dark-900">
                   <div className={`text-3xl font-bold ${s.color}`}>{s.value}</div>
@@ -525,7 +565,9 @@ export default function GymPage() {
                         <td className="py-1.5 text-white">#{r.rep}</td>
                         <td className="py-1.5 text-slate-300">{r.min_angle}°</td>
                         <td className="py-1.5 text-slate-300">{r.max_angle}°</td>
-                        <td className={`py-1.5 font-medium ${r.form === "good" ? "text-neon-green" : "text-red-400"}`}>
+                        <td className={`py-1.5 font-medium ${
+                          r.form === "good" ? "text-neon-green" : "text-red-400"
+                        }`}>
                           {r.form === "good" ? "✓ Good" : "✗ Bad"}
                         </td>
                       </tr>
