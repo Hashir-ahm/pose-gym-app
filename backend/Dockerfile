@@ -8,27 +8,25 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-COPY requirements.txt .
+# Install numpy first at exact version
+RUN pip install --no-cache-dir numpy==2.4.2
 
-# Step 1: Install numpy first at correct version
-RUN pip install --no-cache-dir numpy==2.0.0
-
-# Step 2: Install CPU torch
+# Install CPU torch matching your local versions
 RUN pip install --no-cache-dir \
     torch==2.5.1+cpu \
     torchvision==0.20.1+cpu \
     --index-url https://download.pytorch.org/whl/cpu
 
-# Step 3: Install everything else
+# Install remaining packages at exact local versions
 RUN pip install --no-cache-dir \
-    fastapi==0.111.0 \
-    "uvicorn[standard]==0.29.0" \
-    websockets==12.0 \
-    python-multipart==0.0.9 \
-    aiofiles==23.2.1 \
+    mediapipe==0.10.21 \
     opencv-python-headless==4.10.0.84 \
-    mediapipe==0.10.18 \
-    scipy==1.13.0
+    fastapi==0.136.1 \
+    "uvicorn[standard]==0.46.0" \
+    websockets==16.0 \
+    python-multipart==0.0.27 \
+    aiofiles==25.1.0 \
+    scipy==1.17.0
 
 COPY . .
 
