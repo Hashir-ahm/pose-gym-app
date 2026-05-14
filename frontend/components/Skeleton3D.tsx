@@ -1,5 +1,5 @@
 "use client";
-import { useRef } from "react";
+import { useRef, useMemo } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Grid } from "@react-three/drei";
 import * as THREE from "three";
@@ -20,37 +20,46 @@ const BONE_COLORS = [
   "#F39C12","#F39C12","#F39C12",
 ];
 
+// ── Exponential moving average smoothing ─────────────────────────────────────
+const ALPHA = 0.35; // lower = smoother but more lag. 0.35 is a good balance
+let smoothedJoints: number[][] | null = null;
+
+function smoothJoints(raw: [number,number,number][]): [number,number,number][] {
+  if (!smoothedJoints || smoothedJoints.length !== raw.length) {
+    smoothedJoints = raw.map(j => [...j]);
+    return raw;
+  }
+  smoothedJoints = smoothedJoints.map((prev, i) => [
+    prev[0] + ALPHA * (raw[i][0] - prev[0]),
+    prev[1] + ALPHA * (raw[i][1] - prev[1]),
+    prev[2] + ALPHA * (raw[i][2] - prev[2]),
+  ]);
+  return smoothedJoints as [number,number,number][];
+}
+
 function SkeletonMesh({ joints }: { joints: [number,number,number][] }) {
-  // No useFrame here — no auto rotation at all
-  if (!joints || joints.length < 17) return null;
+  const smoothed = smoothJoints(joints);
+
+  if (!smoothed || smoothed.length < 17) return null;
 
   return (
     <group>
-      {/* Joint spheres */}
-      {joints.map((j, i) => (
+      {smoothed.map((j, i) => (
         <mesh key={i} position={[j[0], -j[1], j[2]]}>
           <sphereGeometry args={[0.025, 12, 12]} />
-          <meshStandardMaterial
-            color="#ffffff"
-            emissive="#00ff88"
-            emissiveIntensity={0.5}
-          />
+          <meshStandardMaterial color="#ffffff" emissive="#00ff88" emissiveIntensity={0.5} />
         </mesh>
       ))}
 
-      {/* Bones */}
       {BONES.map(([a, b], i) => {
-        const start = new THREE.Vector3(joints[a][0], -joints[a][1], joints[a][2]);
-        const end   = new THREE.Vector3(joints[b][0], -joints[b][1], joints[b][2]);
+        const start = new THREE.Vector3(smoothed[a][0], -smoothed[a][1], smoothed[a][2]);
+        const end   = new THREE.Vector3(smoothed[b][0], -smoothed[b][1], smoothed[b][2]);
         const dir   = new THREE.Vector3().subVectors(end, start);
         const len   = dir.length();
         if (len < 0.001) return null;
-        const mid   = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
-        const quat  = new THREE.Quaternion();
-        quat.setFromUnitVectors(
-          new THREE.Vector3(0, 1, 0),
-          dir.clone().normalize()
-        );
+        const mid  = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
+        const quat = new THREE.Quaternion();
+        quat.setFromUnitVectors(new THREE.Vector3(0,1,0), dir.clone().normalize());
 
         return (
           <mesh key={i} position={mid} quaternion={quat}>
@@ -76,25 +85,17 @@ function EmptySkeleton() {
   );
 }
 
-export default function Skeleton3D({
-  joints,
-}: {
-  joints: [number, number, number][] | null;
-}) {
+export default function Skeleton3D({ joints }: { joints: [number,number,number][] | null }) {
   return (
-    <Canvas
-      camera={{ position: [0, 0, 3], fov: 50 }}
-      style={{ background: "transparent" }}
-    >
+    <Canvas camera={{ position: [0, 0, 3], fov: 50 }} style={{ background: "transparent" }}>
       <ambientLight intensity={0.5} />
       <pointLight position={[2, 2, 2]} intensity={1} color="#00ff88" />
       <pointLight position={[-2, -2, -2]} intensity={0.5} color="#00d4ff" />
 
-      {joints && joints.length === 17 ? (
-        <SkeletonMesh joints={joints} />
-      ) : (
-        <EmptySkeleton />
-      )}
+      {joints && joints.length === 17
+        ? <SkeletonMesh joints={joints} />
+        : <EmptySkeleton />
+      }
 
       <Grid
         args={[6, 6]}
@@ -103,13 +104,11 @@ export default function Skeleton3D({
         sectionColor="#00ff8822"
         fadeDistance={8}
       />
-
-      {/* OrbitControls only — no autoRotate at all */}
       <OrbitControls
         enablePan={false}
         enableZoom={true}
-        autoRotate={false}       // ← disabled completely
-        enableDamping={true}     // smooth drag feel
+        autoRotate={false}
+        enableDamping={true}
         dampingFactor={0.08}
       />
     </Canvas>
