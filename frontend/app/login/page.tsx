@@ -41,7 +41,7 @@ export default function LoginPage() {
           <div className="w-8 h-8 rounded-lg bg-neon-green flex items-center justify-center">
             <span className="text-black font-bold text-sm">P</span>
           </div>
-          <span className="text-white font-bold text-xl">PoseAI</span>
+          <span className="text-white font-bold text-xl">Poselift</span>
         </Link>
 
         {/* Card */}
