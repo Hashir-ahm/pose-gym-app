@@ -148,7 +148,7 @@ export default function Dashboard() {
           <div className="w-7 h-7 rounded-md bg-neon-green flex items-center justify-center">
             <span className="text-black font-bold text-xs">P</span>
           </div>
-          <span className="text-white font-bold">PoseAI</span>
+          <span className="text-white font-bold">Poselift</span>
         </div>
 
         <div className="flex items-center gap-4">
