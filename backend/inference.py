@@ -35,14 +35,16 @@ def mediapipe_to_17joints(landmarks, W: int, H: int):
 
     try:
         return np.array([
-            mid(MP.LEFT_HIP,      MP.RIGHT_HIP),
+            # NEW — pelvis pulled slightly upward toward spine
+            (mid(MP.LEFT_HIP, MP.RIGHT_HIP) * 0.7 + mid(MP.LEFT_SHOULDER, MP.RIGHT_SHOULDER) * 0.3),  #  0 Pelvis
             pt(MP.RIGHT_HIP),
             pt(MP.RIGHT_KNEE),
             pt(MP.RIGHT_ANKLE),
             pt(MP.LEFT_HIP),
             pt(MP.LEFT_KNEE),
             pt(MP.LEFT_ANKLE),
-            mid(MP.LEFT_HIP,      MP.LEFT_SHOULDER),
+            # NEW — true center of body, halfway between hip midpoint and shoulder midpoint
+            (mid(MP.LEFT_HIP, MP.RIGHT_HIP) * 0.5 + mid(MP.LEFT_SHOULDER, MP.RIGHT_SHOULDER) * 0.5),  #  7 Spine
             mid(MP.LEFT_SHOULDER, MP.RIGHT_SHOULDER),
             mid(MP.LEFT_EAR,      MP.RIGHT_EAR),
             mid(MP.LEFT_EAR,      MP.RIGHT_EAR),
